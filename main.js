@@ -3,7 +3,7 @@ const cron = require('node-cron');
 
 
 // replace the value below with the Telegram token you receive from @BotFather
-const token = "925792826:AAEyV1HL1xMtxehkGsZSd3qGsdY3G5ypmg8";
+const token = "{TOKEN}";
 
 // Create a bot that uses 'polling' to fetch new updates
 const bot = new TelegramBot(token, {polling: true});
