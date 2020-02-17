@@ -3,24 +3,63 @@ const puppeteer = require('puppeteer');
 
 //const cron = require('node-cron');
 
+
 // replace the value below with the Telegram token you receive from @BotFather
-const token = "{TOKEN}"
+const token = "{TOKEN}";
+
 
 // Create a bot that uses 'polling' to fetch new updates
 const bot = new TelegramBot(token, {polling: true});
 
-// Matches "/echo [whatever]"
-bot.onText(/\/echo (.+)/, (msg, match) => {
-  // 'msg' is the received Message from Telegram
-  // 'match' is the result of executing the regexp above on the text content
-  // of the message
+// Matches "/vagas [whatever]"
+bot.onText(/\/vagas (.+)/, (msg, match) => {
+
+  // ---------------   Envie   /vaga  {tecnologia}  e receba uma lista de vagas,
+  //                   por hora todos os resultados estão fixados em Minas Gerais
+
+
   const chatId = msg.chat.id;
   const resp = match[1]; // the captured "whatever"
-  // send back the matched "whatever" to the chat
-  bot.sendMessage(chatId, resp);
+  getJob(chatId,resp);  
+
 });
 
-// ----------   Scraping com Puppeteer --------------
+// Listen for any kind of message. There are different kinds of
+// messages.
+async function getJob(chatId,tech){
+
+    const browser = await puppeteer.launch();
+    const page = await browser.newPage();
+    await page.goto('https://www.linkedin.com/home/?originalSubdomain=br');
+    await page.waitFor(2000);
+    await page.click('[class=nav__button-secondary]');
+    await page.waitFor(2000);
+
+
+
+    //---------  INSERT YOUR LINKEDIN CREDENTIALS --------------
+
+    await page.type('[name=session_key]','{EMAIL LINKEDIN}');
+    await page.type('[type=password]','{PASSWORD LINKEDIN}');
+    
+    //-------------------------------------------------------------- 
+
+    await page.click('[type=submit]');
+    await page.waitFor(2000);
+    await page.goto(`https://www.linkedin.com/jobs/search/?geoId=100358611&keywords=${tech}%20&location=Minas%20Gerais%2C%20Brasil`);
+    const data  =  await page.evaluate(()=>{
+    const list = document.querySelectorAll('#ember4 > div.application-outlet > div.authentication-outlet > section.job-search-ext.job-search-ext--two-pane > div.jobs-search-two-pane__wrapper.jobs-search-two-pane__wrapper--two-pane > div > div > div.jobs-search-two-pane__results.display-flex > div.jobs-search-results.jobs-search-results--is-two-pane > div > ul'); 
+    const res  = document.location.href;
+      return{
+        response : res,
+        data : list[0].innerText
+      }
+    });
+    console.log(data);
+    bot.sendMessage(chatId,data.data)
+    await browser.close();
+
+}
 
 async function mandaNude(chatId){
     const browser = await puppeteer.launch();
