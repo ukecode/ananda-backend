@@ -1,69 +1,78 @@
-const TelegramBot = require('node-telegram-bot-api');
-const puppeteer = require('puppeteer');
+const {getJob} = require('./src/middlewares/linkedin/jobs');
+const {mandaNude} = require('./src/middlewares/nude/sendNude');
+const {bot}  = require('./src/servers/server');
+const {getWhois}  = require('./src/middlewares/whois/whois');
+const axios = require('axios');
 
-//const cron = require('node-cron');
 
-// replace the value below with the Telegram token you receive from @BotFather
-const token = "{TOKEN}"
+let session_id  = false; 
 
-// Create a bot that uses 'polling' to fetch new updates
-const bot = new TelegramBot(token, {polling: true});
-
-// Matches "/echo [whatever]"
-bot.onText(/\/echo (.+)/, (msg, match) => {
-  // 'msg' is the received Message from Telegram
-  // 'match' is the result of executing the regexp above on the text content
-  // of the message
+// ---------------- busca por vagas --------------------
+bot.onText(/\/vagas (.+)/, async (msg, match) => {
   const chatId = msg.chat.id;
   const resp = match[1]; // the captured "whatever"
-  // send back the matched "whatever" to the chat
-  bot.sendMessage(chatId, resp);
+  const jobs  = await getJob(resp)
+  bot.sendMessage(chatId,jobs);
 });
 
-// ----------   Scraping com Puppeteer --------------
 
-async function mandaNude(chatId){
-    const browser = await puppeteer.launch();
-    const page = await browser.newPage();
-    await page.goto('https://www.xvideos.com/');
-      
-    let url  = await page.evaluate(()=>{
-      var images  = document.getElementsByTagName('img')
-       return(images[0].src);
-    })
+// --------------- busca por informações de sites--------
 
-    bot.sendPhoto(chatId, url);
-    await browser.close();
-}
+bot.onText(/\/whois (.+)/, async (msg, match) => {
+  const chatId = msg.chat.id;
+  const resp = match[1]; // the captured "whatever"
+  const data  = await getWhois(resp)
+  bot.sendMessage(chatId,data);
+});
 
 
-bot.on('message', (msg) => {
+
+
+//------------------
+bot.on('message', async (msg) => {
   const chatId = msg.chat.id;
   console.log(chatId);
 
-
-// --------  
-
 if(msg.text == "#mandanude"){
-
- mandaNude(chatId);
-}
-
-if(msg.text  == 'Oi'){
+  const url = await mandaNude()
+  bot.sendPhoto(chatId, url);
+}else if(msg.text  == 'Oi'){
     bot.sendMessage(chatId, 'Oiiii sumido, tudo bem?');
- 
-}
-
-if(msg.text  == 'Tudo e vc?'){
+}else if(msg.text  == 'Tudo e vc?'){
     bot.sendMessage(chatId, 'Melhor agora ;)');
+}else if(msg.text == "config"){
+
+  axios.get('http://localhost:3000/api/session').then(function (response) {
+    // handle success
+    console.log(response.data);
+    session_id = response.data.result.session_id; 
+    if(session_id){
+      bot.sendMessage(chatId,"Sucess!");
+    }
+
+  }).catch(function (error) {
+    // handle error
+    console.log(error);
+  });
+
+}else if(msg.text && session_id){
+
+axios.post('http://localhost:3000/api/message', { session_id, "input": {
+                         "message_type": "text",
+                          "text": msg.text }}).then(function (response) {
+    const res = response.data.result.output.generic[0].text
+    res ? bot.sendMessage(chatId,res) : console.error('no data');
+  })
+  .catch(function (error) {
+    console.log(error);
+  });
+
 
 }
-  // send a message to the chat acknowledging receipt of their message
+
+
+
 });
 
-
-//cron.schedule('0 6-7 * * * ', () => {
-//    bot.sendMessage('823137937', 'Bom dia flor do dia!');
-//  });
 
 
